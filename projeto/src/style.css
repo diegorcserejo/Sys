@@ -1,0 +1,25 @@
+html, body, #app {
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+}
+
+html {
+  background: #050811;
+}
+
+body {
+  background: #050811;
+  color: #ffffff;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  overflow-x: hidden;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+#app {
+  min-height: 100vh;
+}
+
