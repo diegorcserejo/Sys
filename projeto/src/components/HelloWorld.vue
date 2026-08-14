@@ -26,14 +26,14 @@ const textureBase = 'https://www.solarsystemscope.com/textures/download/'
 const blueprints = [
   ['mercure', 'MERCURY', 'THE SWIFT PLANET', '2k_mercury.jpg', 'The smallest planet is a rocky world covered by ancient impact craters. Its thin atmosphere cannot hold on to heat, so temperatures swing dramatically between day and night.'],
   ['venus', 'VENUS', 'THE VEILED PLANET', '2k_venus_surface.jpg', 'Venus is wrapped in a dense carbon-dioxide atmosphere and bright clouds of sulfuric acid. Beneath them lies a volcanic surface under extraordinary pressure.'],
-  ['terre', 'EARTH', 'THE BLUE PLANET', '2k_earth_daymap.jpg', 'Our home planet is a rocky ocean world with an active surface of mountains, valleys, plains and canyons. Liquid water covers about 70% of its surface.'],
+  ['terre', 'EARTH', 'THE BLUE PLANET', 'https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg', 'Our home planet is a rocky ocean world with an active surface of mountains, valleys, plains and canyons. Liquid water covers about 70% of its surface.'],
   ['mars', 'MARS', 'THE RED PLANET', '2k_mars.jpg', 'Mars is a cold desert world marked by iron-rich dust, giant volcanoes and deep canyons. Evidence of ancient rivers and lakes makes it a key target in the search for past habitability.'],
   ['jupiter', 'JUPITER', 'THE GIANT PLANET', '2k_jupiter.jpg', 'Jupiter is the largest planet in the Solar System. Its visible surface is a turbulent atmosphere of hydrogen and helium, including the long-lived Great Red Spot.'],
   ['saturne', 'SATURN', 'THE RINGED PLANET', '2k_saturn.jpg', 'Saturn is a gas giant recognized by its luminous ring system. The rings are made mostly of countless pieces of water ice, from dust-sized grains to mountain-sized fragments.'],
   ['uranus', 'URANUS', 'THE SIDEWAYS PLANET', '2k_uranus.jpg', 'Uranus is an ice giant with a pale blue atmosphere colored by methane. Its extreme axial tilt gives it seasons unlike those of any other planet.'],
   ['neptune', 'NEPTUNE', 'THE WINDY PLANET', '2k_neptune.jpg', 'Neptune is a deep-blue ice giant far from the Sun. Its atmosphere hosts the fastest winds measured anywhere in the Solar System.']
 ] as const
-const makePlanet = ([id, name, tagline, texture, surface]: typeof blueprints[number]): Planet => ({ id, name, tagline, texture: `${textureBase}${texture}`, surfaceInfo: surface, heroDescription: `Explore ${name[0] + name.slice(1).toLowerCase()}, one of the eight worlds orbiting our Sun.`, detailedInfo: 'Loading current planetary data...' })
+const makePlanet = ([id, name, tagline, texture, surface]: typeof blueprints[number]): Planet => ({ id, name, tagline, texture: texture.startsWith('http') ? texture : `${textureBase}${texture}`, surfaceInfo: surface, heroDescription: `Explore ${name[0] + name.slice(1).toLowerCase()}, one of the eight worlds orbiting our Sun.`, detailedInfo: 'Loading current planetary data...' })
 const planets = ref<Planet[]>(blueprints.map(makePlanet))
 const currentPlanet = computed(() => planets.value[currentIndex.value])
 const previousPlanet = computed(() => planets.value[(currentIndex.value + planets.value.length - 1) % planets.value.length])
@@ -43,8 +43,27 @@ let scene: THREE.Scene, camera: THREE.PerspectiveCamera, renderer: THREE.WebGLRe
 let scrollTimeline: gsap.core.Timeline | undefined
 const textureLoader = new THREE.TextureLoader()
 const surfaceRelief: Record<string, number> = { mercure: .18, venus: .1, terre: .22, mars: .28, jupiter: .09, saturne: .08, uranus: .04, neptune: .05 }
+const fallbackColors: Record<string, string> = { mercure: '#7c7268', venus: '#b47742', terre: '#1d5687', mars: '#a04428', jupiter: '#c48b5d', saturne: '#d6bc8a', uranus: '#8ac8d4', neptune: '#315da2' }
+let textureRequestId = 0
 const fallbackTexture = (color: string) => { const canvas = document.createElement('canvas'); canvas.width = canvas.height = 2; const context = canvas.getContext('2d')!; context.fillStyle = color; context.fillRect(0, 0, 2, 2); return new THREE.CanvasTexture(canvas) }
-const loadPlanetTexture = (planet: Planet) => textureLoader.load(planet.texture, (texture) => { texture.colorSpace = THREE.SRGBColorSpace; planetMesh.material.map?.dispose(); planetMesh.material.map = texture; planetMesh.material.bumpMap = texture; planetMesh.material.bumpScale = surfaceRelief[planet.id]; planetMesh.material.needsUpdate = true }, undefined, () => { planetMesh.material.map?.dispose(); planetMesh.material.map = fallbackTexture('#284e76'); planetMesh.material.bumpMap = null; planetMesh.material.needsUpdate = true })
+const loadPlanetTexture = (planet: Planet) => {
+  const requestId = ++textureRequestId
+  textureLoader.load(planet.texture, (texture) => {
+    if (requestId !== textureRequestId) { texture.dispose(); return }
+    texture.colorSpace = THREE.SRGBColorSpace
+    planetMesh.material.map?.dispose()
+    planetMesh.material.map = texture
+    planetMesh.material.bumpMap = texture
+    planetMesh.material.bumpScale = surfaceRelief[planet.id]
+    planetMesh.material.needsUpdate = true
+  }, undefined, () => {
+    if (requestId !== textureRequestId) return
+    planetMesh.material.map?.dispose()
+    planetMesh.material.map = fallbackTexture(fallbackColors[planet.id])
+    planetMesh.material.bumpMap = null
+    planetMesh.material.needsUpdate = true
+  })
+}
 const thumbnailStyle = (planet: Planet) => ({ backgroundImage: `url("${planet.texture}")` })
 const selectPlanet = (index: number) => { currentIndex.value = (index + planets.value.length) % planets.value.length; if (planetMesh) { loadPlanetTexture(currentPlanet.value); atmosphereMesh.visible = !['mercure', 'venus'].includes(currentPlanet.value.id); ringMesh.visible = currentPlanet.value.id === 'saturne' } }
 
