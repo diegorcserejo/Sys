@@ -192,8 +192,10 @@ const systemCards = [
   { id: 'age', title: 'Idade e Formação', value: '4,6 bilhões de anos', description: 'Formado a partir de uma nuvem molecular em colapso. O Sol surgiu no centro e os planetas no disco de acreção.' }
 ]
 
-let scene: THREE.Scene, camera: THREE.PerspectiveCamera, renderer: THREE.WebGLRenderer, planetMesh: THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial>, atmosphereMesh: THREE.Mesh<THREE.SphereGeometry, THREE.ShaderMaterial>, cloudMesh: THREE.Mesh<THREE.SphereGeometry, THREE.MeshPhongMaterial>, ringMesh: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>, moonOrbit: THREE.Group, moonMesh: THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial>, sunMesh: THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial>, animationFrameId = 0
+let scene: THREE.Scene, camera: THREE.PerspectiveCamera, renderer: THREE.WebGLRenderer, planetMesh: THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial>, atmosphereMesh: THREE.Mesh<THREE.SphereGeometry, THREE.ShaderMaterial>, cloudMesh: THREE.Mesh<THREE.SphereGeometry, THREE.MeshPhongMaterial>, ringMesh: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>, moonOrbit: THREE.Group, moonMesh: THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial>, sunMesh: THREE.Mesh<THREE.SphereGeometry, THREE.ShaderMaterial>, animationFrameId = 0
 let scrollTimeline: gsap.core.Timeline | undefined
+let sunCorona: THREE.Sprite | null = null
+const sunUniforms = { uTime: { value: 0 } }
 const textureLoader = new THREE.TextureLoader()
 const surfaceRelief: Record<string, number> = { mercure: .18, venus: .1, terre: .22, mars: .28, ceres: .2, jupiter: .09, saturne: .08, uranus: .04, neptune: .05, pluto: .15, haumea: .12, makemake: .18, eris: .15 }
 const fallbackColors: Record<string, string> = { mercure: '#7c7268', venus: '#b47742', terre: '#1d5687', mars: '#a04428', ceres: '#8f8478', jupiter: '#c48b5d', saturne: '#d6bc8a', uranus: '#8ac8d4', neptune: '#315da2', pluto: '#c4ad93', haumea: '#a08b78', makemake: '#b0805c', eris: '#bfc0c5' }
@@ -377,19 +379,33 @@ const initThree = () => {
   const cloudTexture = textureLoader.load('https://threejs.org/examples/textures/planets/earth_clouds_1024.png', (texture) => { texture.colorSpace = THREE.SRGBColorSpace }, undefined, () => { cloudMesh.visible = false }); cloudMesh = new THREE.Mesh(new THREE.SphereGeometry(2.025, 96, 96), new THREE.MeshPhongMaterial({ map: cloudTexture, transparent: true, opacity: .38, depthWrite: false })); planetMesh.add(cloudMesh)
   const ringTexture = textureLoader.load(`${textureBase}2k_saturn_ring_alpha.png`); ringTexture.colorSpace = THREE.SRGBColorSpace; ringMesh = new THREE.Mesh(new THREE.RingGeometry(2.28, 3.45, 128), new THREE.MeshBasicMaterial({ map: ringTexture, alphaMap: ringTexture, color: 0xe8d5ae, transparent: true, opacity: .82, alphaTest: .06, side: THREE.DoubleSide, depthWrite: false })); ringMesh.rotation.x = Math.PI / 2; ringMesh.visible = false; planetMesh.add(ringMesh)
   moonOrbit = new THREE.Group(); moonOrbit.rotation.z = .2; moonMesh = new THREE.Mesh(new THREE.SphereGeometry(.42, 64, 64), new THREE.MeshStandardMaterial({ roughness: .95, metalness: 0 })); moonMesh.position.set(3.2, .15, 0); textureLoader.load('https://threejs.org/examples/textures/planets/moon_1024.jpg', (texture) => { texture.colorSpace = THREE.SRGBColorSpace; moonMesh.material.map = texture; moonMesh.material.needsUpdate = true }); moonOrbit.add(moonMesh); planetMesh.add(moonOrbit)
-  sunMesh = new THREE.Mesh(new THREE.SphereGeometry(1.18, 64, 64), new THREE.MeshBasicMaterial({ color: 0xffb348 })); sunMesh.position.set(-7.2, 3.8, -6); textureLoader.load(`${textureBase}2k_sun.jpg`, (texture) => { texture.colorSpace = THREE.SRGBColorSpace; sunMesh.material.map = texture; sunMesh.material.needsUpdate = true }); scene.add(sunMesh)
-  const sunHalo = new THREE.Mesh(new THREE.SphereGeometry(1.42, 48, 48), new THREE.MeshBasicMaterial({ color: 0xffa536, transparent: true, opacity: .12, side: THREE.BackSide, blending: THREE.AdditiveBlending, depthWrite: false })); sunMesh.add(sunHalo)
+  const sunVertexShader = 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }'
+  const sunFragmentShader = `uniform float uTime; varying vec2 vUv; float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453123); } float noise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(hash(i),hash(i+vec2(1.,0.)),f.x), mix(hash(i+vec2(0.,1.)),hash(i+vec2(1.,1.)),f.x), f.y); } float fbm(vec2 p){ float v=0., a=.5; for(int i=0;i<5;i++){ v+=a*noise(p); p*=2.07; a*=.5; } return v; } void main(){ float n1=fbm(vUv*7.+uTime*.12); float n2=fbm(vUv*13.-uTime*.08+4.7); float n3=fbm(vUv*22.+uTime*.04+9.3); float p=n1*.55+n2*.3+n3*.15; vec3 core=vec3(1.,.96,.78); vec3 mid=vec3(1.,.68,.22); vec3 dark=vec3(.82,.38,.06); vec3 c=mix(dark,mid,p); c=mix(c,core,smoothstep(.5,1.,p)); float limb=1.-smoothstep(.5,1.,length(vUv-.5)*1.55); c*=.72+.28*limb; gl_FragColor=vec4(c,1.); }`
+  sunMesh = new THREE.Mesh(new THREE.SphereGeometry(1.18, 96, 96), new THREE.ShaderMaterial({ uniforms: sunUniforms, vertexShader: sunVertexShader, fragmentShader: sunFragmentShader })); sunMesh.position.set(-7.2, 3.8, -6); scene.add(sunMesh)
+  const coronaCanvas = document.createElement('canvas'); coronaCanvas.width = coronaCanvas.height = 512
+  const coronaCtx = coronaCanvas.getContext('2d')!
+  const coronaGrad = coronaCtx.createRadialGradient(256, 256, 0, 256, 256, 256)
+  coronaGrad.addColorStop(0, 'rgba(255, 190, 80, 1)')
+  coronaGrad.addColorStop(.16, 'rgba(255, 160, 50, .6)')
+  coronaGrad.addColorStop(.36, 'rgba(255, 120, 25, .22)')
+  coronaGrad.addColorStop(.6, 'rgba(255, 95, 15, .07)')
+  coronaGrad.addColorStop(.82, 'rgba(255, 85, 10, .025)')
+  coronaGrad.addColorStop(1, 'rgba(255, 80, 5, 0)')
+  coronaCtx.fillStyle = coronaGrad; coronaCtx.fillRect(0, 0, 512, 512)
+  const coronaTexture = new THREE.CanvasTexture(coronaCanvas); coronaTexture.colorSpace = THREE.SRGBColorSpace
+  sunCorona = new THREE.Sprite(new THREE.SpriteMaterial({ map: coronaTexture, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }))
+  sunCorona.scale.set(9, 9, 1); sunCorona.position.copy(sunMesh.position); scene.add(sunCorona)
   updatePlanetMotion(currentPlanet.value)
   loadPlanetTexture(currentPlanet.value)
   updatePlanetFeatures(currentPlanet.value)
   const geometry = new THREE.BufferGeometry(), positions = new Float32Array(3600); for (let i = 0; i < positions.length; i += 3) { positions[i] = (Math.random() - .5) * 50; positions[i + 1] = (Math.random() - .5) * 50; positions[i + 2] = -Math.random() * 30 }; geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3)); scene.add(new THREE.Points(geometry, new THREE.PointsMaterial({ color: 0xffffff, size: .05, transparent: true, opacity: .8 })))
   scene.add(new THREE.AmbientLight(0xffffff, 1.8)); const sunlight = new THREE.DirectionalLight(0xffffff, 1.1); sunlight.position.copy(sunMesh.position); scene.add(sunlight)
-  const animate = () => { planetMesh.rotation.y += activeMotion.spin; cloudMesh.rotation.y += .00055; ringMesh.rotation.z += .00035; moonOrbit.rotation.y += .006; moonMesh.rotation.y += .001; sunMesh.rotation.y += .0007; renderer.render(scene, camera); animationFrameId = requestAnimationFrame(animate) }; animate()
+  const animate = () => { planetMesh.rotation.y += activeMotion.spin; cloudMesh.rotation.y += .00055; ringMesh.rotation.z += .00035; moonOrbit.rotation.y += .006; moonMesh.rotation.y += .001; sunMesh.rotation.y += .0007; sunUniforms.uTime.value += .016; renderer.render(scene, camera); animationFrameId = requestAnimationFrame(animate) }; animate()
   setupScrollAnimations()
 }
 const onWindowResize = () => { if (!camera || !renderer) return; camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight) }
 onMounted(async () => { initThree(); window.addEventListener('resize', onWindowResize); await loadPlanetData() })
-onUnmounted(() => { window.removeEventListener('resize', onWindowResize); cancelAnimationFrame(animationFrameId); killScrollAnimations(); sunMesh?.geometry.dispose(); sunMesh?.material.map?.dispose(); sunMesh?.material.dispose(); moonMesh?.geometry.dispose(); moonMesh?.material.map?.dispose(); moonMesh?.material.dispose(); ringMesh?.geometry.dispose(); ringMesh?.material.map?.dispose(); ringMesh?.material.dispose(); cloudMesh?.geometry.dispose(); cloudMesh?.material.map?.dispose(); cloudMesh?.material.dispose(); atmosphereMesh?.geometry.dispose(); atmosphereMesh?.material.dispose(); planetMesh?.geometry.dispose(); planetMesh?.material.map?.dispose(); planetMesh?.material.dispose(); renderer?.dispose() })
+onUnmounted(() => { window.removeEventListener('resize', onWindowResize); cancelAnimationFrame(animationFrameId); killScrollAnimations(); sunCorona?.material.map?.dispose(); sunCorona?.material.dispose(); sunMesh?.geometry.dispose(); sunMesh?.material.dispose(); moonMesh?.geometry.dispose(); moonMesh?.material.map?.dispose(); moonMesh?.material.dispose(); ringMesh?.geometry.dispose(); ringMesh?.material.map?.dispose(); ringMesh?.material.dispose(); cloudMesh?.geometry.dispose(); cloudMesh?.material.map?.dispose(); cloudMesh?.material.dispose(); atmosphereMesh?.geometry.dispose(); atmosphereMesh?.material.dispose(); planetMesh?.geometry.dispose(); planetMesh?.material.map?.dispose(); planetMesh?.material.dispose(); renderer?.dispose() })
 </script>
 
 <style scoped>
