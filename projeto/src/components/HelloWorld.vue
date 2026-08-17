@@ -2,17 +2,51 @@
   <div class="experience-container">
     <canvas ref="canvasRef" class="webgl-canvas"></canvas>
     <header class="header">
-      <div class="logo">space<span class="logo-accent">edu</span></div>
-      <nav class="nav-links">
+      <div class="logo">
+        <svg class="logo-star" viewBox="0 0 64 64" width="44" height="44" aria-hidden="true">
+          <defs>
+            <radialGradient id="logoCore" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#fffbe8"/>
+              <stop offset="30%" stop-color="#ffd66b"/>
+              <stop offset="65%" stop-color="#ff9f2e"/>
+              <stop offset="100%" stop-color="#e06800"/>
+            </radialGradient>
+            <radialGradient id="logoHalo" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#ffb348" stop-opacity=".55"/>
+              <stop offset="45%" stop-color="#ff8c1a" stop-opacity=".18"/>
+              <stop offset="100%" stop-color="#ff8c1a" stop-opacity="0"/>
+            </radialGradient>
+            <linearGradient id="logoText" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#ffffff"/>
+              <stop offset="40%" stop-color="#ffd66b"/>
+              <stop offset="70%" stop-color="#63b3ed"/>
+              <stop offset="100%" stop-color="#ffffff"/>
+            </linearGradient>
+          </defs>
+          <circle cx="32" cy="32" r="26" fill="url(#logoHalo)" class="logo-pulse"/>
+          <ellipse cx="32" cy="32" rx="38" ry="12" fill="none" stroke="#ffb34855" stroke-width="1" transform="rotate(-18 32 32)" class="logo-orbit-a"/>
+          <ellipse cx="32" cy="32" rx="44" ry="13" fill="none" stroke="#63b3ed33" stroke-width="1" transform="rotate(24 32 32)" class="logo-orbit-b"/>
+          <circle cx="65" cy="24" r="2.4" fill="#ffd66b" class="logo-dot-a"/>
+          <circle cx="3" cy="40" r="1.8" fill="#63b3ed" class="logo-dot-b"/>
+          <circle cx="32" cy="32" r="15.5" fill="url(#logoCore)" class="logo-core"/>
+          <circle cx="32" cy="32" r="15.5" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="1.2" class="logo-rim"/>
+          <path d="M25 32 L30 36 L40 27" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-opacity=".9"/>
+        </svg>
+        <span class="logo-text">Sollux</span>
+      </div>
+      <nav class="nav-links" :class="{ open: mobileMenuOpen }">
         <button
           v-for="tab in tabs"
           :key="tab.id"
           class="nav-tab"
           :class="{ active: activeTab === tab.id }"
-          @click="switchTab(tab.id)"
+          @click="switchTab(tab.id); mobileMenuOpen = false"
         >{{ tab.label }}</button>
       </nav>
       <button class="btn-enroll">Inscreva-se</button>
+      <button class="menu-toggle" :class="{ open: mobileMenuOpen }" aria-label="Menu" @click="mobileMenuOpen = !mobileMenuOpen">
+        <span></span><span></span><span></span>
+      </button>
     </header>
 
     <!-- PLANETS / DWARF PLANETS SCROLL EXPERIENCE -->
@@ -125,9 +159,11 @@ const tabs: { id: TabId; label: string }[] = [
 ]
 
 const canvasRef = ref<HTMLCanvasElement | null>(null)
+const mobileMenuOpen = ref(false)
 const activeTab = ref<TabId>('planets')
 const planetIndex = ref(2)
 const dwarfIndex = ref(0)
+const isTransitioning = ref(false)
 const textureBase = 'https://www.solarsystemscope.com/textures/download/'
 
 const planetBlueprints = [
@@ -140,6 +176,7 @@ const planetBlueprints = [
   ['uranus', 'URANO', 'O PLANETA DEITADO', '2k_uranus.jpg', 'Urano é um gigante de gelo com atmosfera azul-pálida colorida por metano. Sua inclinação axial extrema cria estações diferentes das de qualquer outro planeta.'],
   ['neptune', 'NETUNO', 'O PLANETA DOS VENTOS', '2k_neptune.jpg', 'Netuno é um gigante de gelo azul-profundo, distante do Sol. Sua atmosfera abriga os ventos mais rápidos já medidos no Sistema Solar.']
 ] as const
+
 const dwarfBlueprints = [
   ['ceres', 'CERES', 'O ANÃO DO CINTURÃO', '2k_ceres.jpg', 'Ceres é o maior objeto do cinturão de asteroides e o único planeta anão do Sistema Solar interno. Sua superfície rochosa é coberta por crateras e possíveis depósitos de gelo de água.'],
   ['pluto', 'PLUTÃO', 'O REI DO CINTURÃO DE KUIPER', '2k_pluton.jpg', 'Plutão é um mundo gelado no Cinturão de Kuiper, famoso pelo coração de nitrogênio congelado, montanhas de gelo de água e uma atmosfera tênue que muda com as estações.'],
@@ -147,6 +184,7 @@ const dwarfBlueprints = [
   ['makemake', 'MAKEMAKE', 'O ANÃO VERMELHO', '2k_makemake.jpg', 'Makemake é um mundo gelado e avermelhado no Cinturão de Kuiper, coberto por metano congelado, com uma pequena lua chamada MK 2.'],
   ['eris', 'ÉRIS', 'O ANÃO MAIS MASSIVO', '2k_eris.jpg', 'Éris é o planeta anão mais massivo conhecido, com superfície gelada e brilhante no disco disperso, bem além da órbita de Plutão.']
 ] as const
+
 const planetName = (name: string) => name.charAt(0) + name.slice(1).toLowerCase()
 const makePlanet = ([id, name, tagline, texture, surface]: typeof planetBlueprints[number]): Planet => ({ id, name, tagline, texture: texture.startsWith('http') ? texture : `${textureBase}${texture}`, surfaceInfo: surface, heroDescription: `Explore ${planetName(name)}, um dos oito planetas que orbitam o nosso Sol.`, detailedInfo: 'Carregando dados planetários...', facts: [{ label: 'FONTE DE DADOS', value: 'SOLAR SYSTEM OPEN DATA' }, { label: 'STATUS', value: 'SINCRONIZANDO' }] })
 const makeDwarfPlanet = ([id, name, tagline, texture, surface]: typeof dwarfBlueprints[number]): Planet => ({ id, name, tagline, texture: texture.startsWith('http') ? texture : `${textureBase}${texture}`, surfaceInfo: surface, heroDescription: `Explore ${planetName(name)}, um dos cinco planetas anões reconhecidos do Sistema Solar.`, detailedInfo: 'Carregando dados planetários...', facts: [{ label: 'FONTE DE DADOS', value: 'SOLAR SYSTEM OPEN DATA' }, { label: 'STATUS', value: 'SINCRONIZANDO' }] })
@@ -201,7 +239,6 @@ const surfaceRelief: Record<string, number> = { mercure: .18, venus: .1, terre: 
 const fallbackColors: Record<string, string> = { mercure: '#7c7268', venus: '#b47742', terre: '#1d5687', mars: '#a04428', ceres: '#8f8478', jupiter: '#c48b5d', saturne: '#d6bc8a', uranus: '#8ac8d4', neptune: '#315da2', pluto: '#c4ad93', haumea: '#a08b78', makemake: '#b0805c', eris: '#bfc0c5' }
 const planetMotion: Record<string, { spin: number; tilt: number; scale: number }> = { mercure: { spin: .0028, tilt: .03, scale: .86 }, venus: { spin: .00055, tilt: 3.09, scale: 1.02 }, terre: { spin: .0015, tilt: .41, scale: 1 }, mars: { spin: .0014, tilt: .44, scale: .9 }, ceres: { spin: .0031, tilt: .03, scale: .55 }, jupiter: { spin: .0032, tilt: .05, scale: 1.25 }, saturne: { spin: .0026, tilt: .47, scale: 1.15 }, uranus: { spin: .0011, tilt: 1.71, scale: 1.03 }, neptune: { spin: .002, tilt: .49, scale: 1.04 }, pluto: { spin: .0013, tilt: 2.17, scale: .52 }, haumea: { spin: .0042, tilt: 1.32, scale: .55 }, makemake: { spin: .0028, tilt: .2, scale: .52 }, eris: { spin: .0012, tilt: .15, scale: .55 } }
 let activeMotion = planetMotion.terre
-let textureRequestId = 0
 
 const fallbackTexture = (color: string) => {
   const canvas = document.createElement('canvas'); canvas.width = canvas.height = 512
@@ -212,63 +249,186 @@ const fallbackTexture = (color: string) => {
   for (let i = 0; i < 3000; i++) { context.fillStyle = `rgba(255,255,255,${Math.random() * .12})`; context.beginPath(); context.arc(Math.random() * 512, Math.random() * 512, Math.random() * 2.5, 0, Math.PI * 2); context.fill() }
   const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace; return texture
 }
-const loadPlanetTexture = (planet: Planet) => {
-  const requestId = ++textureRequestId
-  textureLoader.load(planet.texture, (texture) => {
-    if (requestId !== textureRequestId) { texture.dispose(); return }
-    texture.colorSpace = THREE.SRGBColorSpace
-    planetMesh.material.map?.dispose()
-    planetMesh.material.map = texture
-    planetMesh.material.bumpMap = texture
-    planetMesh.material.emissiveMap = texture
-    planetMesh.material.bumpScale = surfaceRelief[planet.id]
-    planetMesh.material.needsUpdate = true
-  }, undefined, () => {
-    if (requestId !== textureRequestId) return
-    planetMesh.material.map?.dispose()
-    planetMesh.material.map = fallbackTexture(fallbackColors[planet.id])
-    planetMesh.material.bumpMap = null
-    planetMesh.material.emissiveMap = null
-    planetMesh.material.needsUpdate = true
+const textureCache = new Map<string, THREE.Texture>()
+const textureMemory = { fallbackTextures: new Map<string, THREE.Texture>() }
+const getCachedTexture = (planet: Planet) => {
+  const cached = textureCache.get(planet.id)
+  if (cached) return cached
+  const fallback = textureMemory.fallbackTextures.get(planet.id) ?? fallbackTexture(fallbackColors[planet.id])
+  textureMemory.fallbackTextures.set(planet.id, fallback)
+  return fallback
+}
+const preloadAllTextures = () => {
+  const all = [...planets.value, ...dwarfPlanets.value]
+  all.forEach((planet) => {
+    const existing = textureCache.get(planet.id)
+    if (existing && existing !== textureMemory.fallbackTextures.get(planet.id)) return
+    textureLoader.load(planet.texture, (texture) => {
+      texture.colorSpace = THREE.SRGBColorSpace
+      textureCache.set(planet.id, texture)
+      if (planetMesh && planet.id === currentPlanet.value.id) {
+        planetMesh.material.map?.dispose?.()
+        planetMesh.material.map = texture
+        planetMesh.material.bumpMap = texture
+        planetMesh.material.needsUpdate = true
+      }
+    }, undefined, () => {
+      textureCache.set(planet.id, textureMemory.fallbackTextures.get(planet.id) ?? fallbackTexture(fallbackColors[planet.id]))
+    })
   })
 }
+const instantApplyTexture = (planet: Planet) => {
+  const texture = getCachedTexture(planet)
+  if (planetMesh) {
+    const old = planetMesh.material.map
+    planetMesh.material.map = texture
+    planetMesh.material.bumpMap = planet.id !== 'venus' ? texture : null
+    planetMesh.material.bumpScale = surfaceRelief[planet.id]
+    if (old && old !== texture) { old.dispose?.() }
+    planetMesh.material.needsUpdate = true
+  }
+}
+const cacheFallback = (planet: Planet) => {
+  if (!textureMemory.fallbackTextures.has(planet.id)) {
+    const fallback = fallbackTexture(fallbackColors[planet.id])
+    textureMemory.fallbackTextures.set(planet.id, fallback)
+    textureCache.set(planet.id, fallback)
+  }
+}
+planets.value.forEach(cacheFallback)
+dwarfPlanets.value.forEach(cacheFallback)
+
 const thumbnailStyle = (planet: Planet) => ({ backgroundImage: `url("${planet.texture}")` })
+
+const isMobile = () => window.innerWidth <= 768
+
 const updatePlanetMotion = (planet: Planet) => {
   activeMotion = planetMotion[planet.id]
-  gsap.to(planetMesh.scale, { x: activeMotion.scale, y: activeMotion.scale, z: activeMotion.scale, duration: .7, ease: 'power2.out', overwrite: true })
+  const mobileScale = isMobile() ? .45 : 1
+  gsap.to(planetMesh.scale, { x: activeMotion.scale * mobileScale, y: activeMotion.scale * mobileScale, z: activeMotion.scale * mobileScale, duration: .7, ease: 'power2.out', overwrite: true })
   gsap.to(planetMesh.rotation, { z: activeMotion.tilt, duration: .85, ease: 'power2.out', overwrite: 'auto' })
 }
+
 const updatePlanetFeatures = (planet: Planet) => {
   atmosphereMesh.visible = ['terre', 'mars', 'jupiter', 'saturne', 'uranus', 'neptune'].includes(planet.id)
   cloudMesh.visible = planet.id === 'terre'
   ringMesh.visible = ['saturne', 'haumea'].includes(planet.id)
   moonOrbit.visible = ['terre', 'pluto'].includes(planet.id)
 }
+
 const selectPlanet = (delta: number) => {
+  if (isTransitioning.value || !planetMesh) return
+  isTransitioning.value = true
+
   const list = activePlanets.value
   const next = (currentIndex.value + delta + list.length) % list.length
-  if (activeTab.value === 'planets') planetIndex.value = next
-  else dwarfIndex.value = next
-  if (planetMesh) {
-    loadPlanetTexture(currentPlanet.value)
-    updatePlanetFeatures(currentPlanet.value)
-    updatePlanetMotion(currentPlanet.value)
-  }
+  const nextPlanetData = list[next]
+  
+  const mobile = isMobile()
+  const defaultY = mobile ? -1.7 : -2.1
+  const defaultZ = mobile ? 3 : 1.5
+  const slideDirection = delta > 0 ? -1 : 1
+
+  const heroContent = document.querySelector('.hero-content')
+  const tl = gsap.timeline({
+    onComplete: () => {
+      isTransitioning.value = false
+    }
+  })
+
+  // 1. Saída do planeta e do texto
+  tl.to(heroContent, {
+    opacity: 0,
+    y: -20,
+    duration: 0.35,
+    ease: 'power2.in'
+  }, 0)
+
+  tl.to(planetMesh.position, {
+    x: slideDirection * (mobile ? 4.5 : 6),
+    y: defaultY - 0.9,
+    duration: 0.5,
+    ease: 'power2.in'
+  }, 0)
+
+  tl.to(planetMesh.scale, {
+    x: 0.25,
+    y: 0.25,
+    z: 0.25,
+    duration: 0.5,
+    ease: 'power2.in'
+  }, 0)
+
+  tl.to(planetMesh.rotation, {
+    y: planetMesh.rotation.y + slideDirection * 1.5,
+    duration: 0.5,
+    ease: 'power2.in'
+  }, 0)
+
+  // 2. Troca de dados quando o planeta sai da visão
+  tl.add(() => {
+    if (activeTab.value === 'planets') planetIndex.value = next
+    else dwarfIndex.value = next
+
+    instantApplyTexture(nextPlanetData)
+    updatePlanetFeatures(nextPlanetData)
+    activeMotion = planetMotion[nextPlanetData.id]
+
+    // Teleporta o planeta para o outro lado
+    planetMesh.position.x = -slideDirection * (mobile ? 4.5 : 6)
+    planetMesh.position.y = defaultY - 0.9
+  })
+
+  // 3. Entrada do novo planeta
+  const targetScale = activeMotion.scale * (mobile ? 0.45 : 1)
+  tl.to(planetMesh.position, {
+    x: 0,
+    y: defaultY,
+    z: defaultZ,
+    duration: 0.65,
+    ease: 'power3.out'
+  })
+
+  tl.to(planetMesh.scale, {
+    x: targetScale,
+    y: targetScale,
+    z: targetScale,
+    duration: 0.65,
+    ease: 'back.out(1.15)'
+  }, '<')
+
+  tl.to(planetMesh.rotation, {
+    z: activeMotion.tilt,
+    duration: 0.65,
+    ease: 'power2.out'
+  }, '<')
+
+  // 4. Entrada suave das novas informações
+  tl.fromTo(heroContent,
+    { opacity: 0, y: 25 },
+    { opacity: 1, y: 0, duration: 0.45, ease: 'power2.out' },
+    '-=0.35'
+  )
 }
+
 const scrollToNextSection = () => {
   if (activeTab.value === 'planets' || activeTab.value === 'dwarfs') {
     window.scrollTo({ top: window.scrollY + window.innerHeight, behavior: 'smooth' })
   }
 }
+
 const killScrollAnimations = () => {
   scrollTimeline?.kill(); scrollTimeline = undefined
   ScrollTrigger.getAll().forEach((trigger) => trigger.kill())
 }
+
 const setupScrollAnimations = () => {
   if (!planetMesh || activeTab.value === 'stars' || activeTab.value === 'system') return
   killScrollAnimations()
-  gsap.set(planetMesh.position, { x: 0, y: -1.8, z: 1.5 })
+  const mobile = isMobile()
+  gsap.set(planetMesh.position, { x: 0, y: mobile ? -1.7 : -2.1, z: mobile ? 3 : 1.5 })
   gsap.set(camera.position, { x: 0, y: 0, z: 6 })
+  if (mobile) gsap.set(planetMesh.scale, { x: activeMotion.scale * .45, y: activeMotion.scale * .45, z: activeMotion.scale * .45 })
   const heroContent = document.querySelector('.hero-content')
   const detailContent = document.querySelector('.detail-content')
   const surfaceContent = document.querySelector('.surface-content')
@@ -280,18 +440,19 @@ const setupScrollAnimations = () => {
   window.scrollTo(0, 0)
   scrollTimeline = gsap.timeline({ scrollTrigger: { trigger: '.planet-scroll', start: 'top top', end: 'bottom bottom', scrub: 1.2 } })
   scrollTimeline
-    .to(planetMesh.position, { x: 1.8, y: .1, z: 2.2, ease: 'power1.inOut' }, 0)
+    .to(planetMesh.position, { x: mobile ? .6 : 1.8, y: mobile ? -.3 : -.2, z: mobile ? 3.4 : 2.2, ease: 'power1.inOut' }, 0)
     .to(planetMesh.rotation, { x: .2, y: Math.PI * .8, ease: 'none' }, 0)
     .to(heroContent, { opacity: 0, y: -50 }, 0)
     .to(adjacentButtons, { opacity: 0, y: -50, stagger: .05 }, 0)
     .to(scrollIndicator, { opacity: 0, y: -50 }, 0)
     .fromTo(detailContent, { opacity: 0, x: -80 }, { opacity: 1, x: 0, ease: 'power2.out' }, .3)
-    .to(camera.position, { z: 3.2, y: .2, ease: 'power2.inOut' }, 1)
-    .to(planetMesh.position, { x: 0, y: .5, z: 1.8, ease: 'power2.inOut' }, 1)
+    .to(camera.position, { z: mobile ? 4.2 : 3.2, y: .2, ease: 'power2.inOut' }, 1)
+    .to(planetMesh.position, { x: 0, y: mobile ? -.6 : .2, z: mobile ? 3.2 : 1.8, ease: 'power2.inOut' }, 1)
     .to(detailContent, { opacity: 0, y: -30 }, 1)
     .fromTo(surfaceContent, { opacity: 0, y: 50 }, { opacity: 1, y: 0, ease: 'power2.out' }, 1.4)
     .fromTo(planetFacts, { opacity: 0, y: 30 }, { opacity: 1, y: 0, ease: 'power2.out' }, 1.55)
 }
+
 const switchTab = async (tab: TabId) => {
   if (activeTab.value === tab) return
   const wasPlanetTab = activeTab.value === 'planets' || activeTab.value === 'dwarfs'
@@ -300,7 +461,7 @@ const switchTab = async (tab: TabId) => {
   if (tab === 'planets' || tab === 'dwarfs') {
     planetMesh.visible = true
     sunMesh.visible = true
-    loadPlanetTexture(currentPlanet.value)
+    instantApplyTexture(currentPlanet.value)
     updatePlanetFeatures(currentPlanet.value)
     updatePlanetMotion(currentPlanet.value)
     await nextTick()
@@ -317,6 +478,7 @@ const switchTab = async (tab: TabId) => {
     gsap.from('.system-card', { opacity: 0, y: 26, stagger: .06, duration: .45, ease: 'power2.out' })
   }
 }
+
 const starFigureStyle = (star: Star) => {
   const color = star.color
   const delay = (star.id.length * .18).toFixed(2)
@@ -371,10 +533,12 @@ const loadPlanetData = async () => {
 
 const initThree = () => {
   if (!canvasRef.value) return
-  scene = new THREE.Scene(); scene.fog = new THREE.FogExp2(0x050811, .05)
+  scene = new THREE.Scene()
+  scene.background = new THREE.Color(0x0a0e1a)
   camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, .1, 100); camera.position.set(0, 0, 6)
-  renderer = new THREE.WebGLRenderer({ canvas: canvasRef.value, antialias: true, alpha: true }); renderer.setSize(window.innerWidth, window.innerHeight); renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.outputColorSpace = THREE.SRGBColorSpace
-  planetMesh = new THREE.Mesh(new THREE.SphereGeometry(2, 96, 96), new THREE.MeshStandardMaterial({ map: fallbackTexture('#244f79'), roughness: .72, metalness: .01 })); planetMesh.position.set(0, -1.8, 1.5); scene.add(planetMesh)
+  renderer = new THREE.WebGLRenderer({ canvas: canvasRef.value, antialias: true, alpha: false })
+  renderer.setSize(window.innerWidth, window.innerHeight); renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.outputColorSpace = THREE.SRGBColorSpace
+  planetMesh = new THREE.Mesh(new THREE.SphereGeometry(2, 96, 96), new THREE.MeshStandardMaterial({ map: fallbackTexture('#244f79'), roughness: .72, metalness: .01 })); planetMesh.position.set(0, -2.1, 1.5); scene.add(planetMesh)
   atmosphereMesh = new THREE.Mesh(new THREE.SphereGeometry(2.06, 96, 96), new THREE.ShaderMaterial({ transparent: true, side: THREE.BackSide, depthWrite: false, blending: THREE.AdditiveBlending, vertexShader: 'varying vec3 vNormal; void main() { vNormal = normalize(normalMatrix * normal); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }', fragmentShader: 'varying vec3 vNormal; void main() { float rim = pow(0.72 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 3.0); gl_FragColor = vec4(0.18, 0.55, 1.0, rim * 0.32); }' })); planetMesh.add(atmosphereMesh)
   const cloudTexture = textureLoader.load('https://threejs.org/examples/textures/planets/earth_clouds_1024.png', (texture) => { texture.colorSpace = THREE.SRGBColorSpace }, undefined, () => { cloudMesh.visible = false }); cloudMesh = new THREE.Mesh(new THREE.SphereGeometry(2.025, 96, 96), new THREE.MeshPhongMaterial({ map: cloudTexture, transparent: true, opacity: .38, depthWrite: false })); planetMesh.add(cloudMesh)
   const ringTexture = textureLoader.load(`${textureBase}2k_saturn_ring_alpha.png`); ringTexture.colorSpace = THREE.SRGBColorSpace; ringMesh = new THREE.Mesh(new THREE.RingGeometry(2.28, 3.45, 128), new THREE.MeshBasicMaterial({ map: ringTexture, alphaMap: ringTexture, color: 0xe8d5ae, transparent: true, opacity: .82, alphaTest: .06, side: THREE.DoubleSide, depthWrite: false })); ringMesh.rotation.x = Math.PI / 2; ringMesh.visible = false; planetMesh.add(ringMesh)
@@ -396,24 +560,73 @@ const initThree = () => {
   sunCorona = new THREE.Sprite(new THREE.SpriteMaterial({ map: coronaTexture, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }))
   sunCorona.scale.set(9, 9, 1); sunCorona.position.copy(sunMesh.position); scene.add(sunCorona)
   updatePlanetMotion(currentPlanet.value)
-  loadPlanetTexture(currentPlanet.value)
+  instantApplyTexture(currentPlanet.value)
   updatePlanetFeatures(currentPlanet.value)
-  const geometry = new THREE.BufferGeometry(), positions = new Float32Array(3600); for (let i = 0; i < positions.length; i += 3) { positions[i] = (Math.random() - .5) * 50; positions[i + 1] = (Math.random() - .5) * 50; positions[i + 2] = -Math.random() * 30 }; geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3)); scene.add(new THREE.Points(geometry, new THREE.PointsMaterial({ color: 0xffffff, size: .05, transparent: true, opacity: .8 })))
+  const geometry = new THREE.BufferGeometry(), positions = new Float32Array(3600); for (let i = 0; i < positions.length; i += 3) { positions[i] = (Math.random() - .5) * 50; positions[i + 1] = (Math.random() - .5) * 50; positions[i + 2] = -Math.random() * 30 }; geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3)); scene.add(new THREE.Points(geometry, new THREE.PointsMaterial({ color: 0xffffff, size: .05, transparent: true, opacity: .6 })))
   scene.add(new THREE.AmbientLight(0xffffff, 1.8)); const sunlight = new THREE.DirectionalLight(0xffffff, 1.1); sunlight.position.copy(sunMesh.position); scene.add(sunlight)
   const animate = () => { planetMesh.rotation.y += activeMotion.spin; cloudMesh.rotation.y += .00055; ringMesh.rotation.z += .00035; moonOrbit.rotation.y += .006; moonMesh.rotation.y += .001; sunMesh.rotation.y += .0007; sunUniforms.uTime.value += .016; renderer.render(scene, camera); animationFrameId = requestAnimationFrame(animate) }; animate()
   setupScrollAnimations()
+  preloadAllTextures()
 }
+
 const onWindowResize = () => { if (!camera || !renderer) return; camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight) }
-onMounted(async () => { initThree(); window.addEventListener('resize', onWindowResize); await loadPlanetData() })
+
+onMounted(async () => { initThree(); window.addEventListener('resize', onWindowResize); await loadPlanetData(); preloadAllTextures() })
 onUnmounted(() => { window.removeEventListener('resize', onWindowResize); cancelAnimationFrame(animationFrameId); killScrollAnimations(); sunCorona?.material.map?.dispose(); sunCorona?.material.dispose(); sunMesh?.geometry.dispose(); sunMesh?.material.dispose(); moonMesh?.geometry.dispose(); moonMesh?.material.map?.dispose(); moonMesh?.material.dispose(); ringMesh?.geometry.dispose(); ringMesh?.material.map?.dispose(); ringMesh?.material.dispose(); cloudMesh?.geometry.dispose(); cloudMesh?.material.map?.dispose(); cloudMesh?.material.dispose(); atmosphereMesh?.geometry.dispose(); atmosphereMesh?.material.dispose(); planetMesh?.geometry.dispose(); planetMesh?.material.map?.dispose(); planetMesh?.material.dispose(); renderer?.dispose() })
 </script>
 
 <style scoped>
+/* ===== FONTE PERSONALIZADA ===== */
+@font-face {
+  font-family: 'PlansFont';
+  src: url('projeto/public/PLANS___.TTF') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ===== OUTRAS FONTES ===== */
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;800&family=Plus+Jakarta+Sans:wght@300;400;600&display=swap');
-.experience-container{position:relative;width:100%;min-height:100vh;background:#050811;color:#fff;font-family:'Plus Jakarta Sans',sans-serif;overflow-x:hidden}
+
+/* ===== ESTILOS GERAIS ===== */
+.experience-container{position:relative;width:100%;min-height:100vh;background:#0a0e1a;color:#fff;font-family:'Plus Jakarta Sans',sans-serif;overflow-x:hidden}
 .webgl-canvas{position:fixed;inset:0;width:100vw;height:100vh;z-index:1;pointer-events:none}
 .header{position:fixed;top:0;left:0;width:100%;display:flex;justify-content:space-between;align-items:center;padding:2rem 4rem;z-index:10;box-sizing:border-box}
-.logo{font-size:1.5rem;font-weight:700;letter-spacing:1px}.logo-accent{color:#63b3ed}
+.logo{display:flex;align-items:center;gap:.7rem;cursor:pointer;text-decoration:none}
+.logo-star{flex:0 0 auto;overflow:visible;filter:drop-shadow(0 0 10px #ff9f2e44)}
+.logo-core{animation:logoCorePulse 2.6s ease-in-out infinite;transform-origin:center;transform-box:fill-box}
+.logo-rim{animation:logoRim 2.6s ease-in-out infinite;transform-origin:center;transform-box:fill-box}
+.logo-pulse{animation:logoHaloPulse 2.6s ease-in-out infinite;transform-origin:center;transform-box:fill-box}
+.logo-orbit-a,.logo-orbit-b{transform-origin:center;transform-box:fill-box;animation:logoOrbit 12s linear infinite;stroke-dasharray:4 6}
+.logo-orbit-b{animation-duration:18s;animation-direction:reverse}
+.logo-dot-a{animation:logoDotA 12s linear infinite;transform-origin:center;transform-box:fill-box}
+.logo-dot-b{animation:logoDotB 18s linear infinite;transform-origin:center;transform-box:fill-box}
+
+/* ===== FONTE DO "SOLLUX" ATUALIZADA ===== */
+.logo-text {
+  font-family: 'PlansFont', 'Cinzel', serif;
+  font-size: 1.55rem;
+  font-weight: normal;
+  letter-spacing: 2.5px;
+  background: linear-gradient(90deg, #fff, #ffd66b 45%, #63b3ed 80%, #fff);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: logoTextShimmer 4.5s ease-in-out infinite;
+  filter: drop-shadow(0 0 12px #ff9f2e33);
+}
+
+@keyframes logoCorePulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+@keyframes logoRim{0%,100%{opacity:.5}50%{opacity:.95}}
+@keyframes logoHaloPulse{0%,100%{transform:scale(.88);opacity:.8}50%{transform:scale(1.12);opacity:1}}
+@keyframes logoOrbit{from{transform:rotate(-18deg) scale(1)}to{transform:rotate(342deg) scale(1)}}
+@keyframes logoDotA{from{transform:rotate(0deg) translateX(34px)}to{transform:rotate(360deg) translateX(34px)}}
+@keyframes logoDotB{from{transform:rotate(0deg) translateX(40px)}to{transform:rotate(-360deg) translateX(40px)}}
+@keyframes logoTextShimmer{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+.logo-orbit-a{animation-name:logoOrbitA}.logo-orbit-b{animation-name:logoOrbitB}
+@keyframes logoOrbitA{from{transform:rotate(-18deg) rotateX(0deg)}to{transform:rotate(-18deg) rotateX(-360deg)}}
+@keyframes logoOrbitB{from{transform:rotate(24deg) rotateX(0deg)}to{transform:rotate(24deg) rotateX(360deg)}}
 .nav-links{display:flex;gap:1.6rem;align-items:center}
 .nav-tab{background:transparent;border:0;color:rgba(255,255,255,.6);font:inherit;font-size:.9rem;letter-spacing:1px;padding:.4rem .9rem;border-radius:8px;cursor:pointer;transition:color .3s,background .3s}
 .nav-tab:hover{color:#fff}
@@ -445,7 +658,7 @@ onUnmounted(() => { window.removeEventListener('resize', onWindowResize); cancel
 .actions{display:flex;align-items:center;gap:1.5rem}
 .btn-play{width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.1);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.2);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer}
 .surface-section{justify-content:flex-end;align-items:flex-end;padding-bottom:8rem}
-.surface-content{max-width:420px;background:rgba(5,8,17,.6);backdrop-filter:blur(16px);padding:2rem;border-radius:16px;border:1px solid rgba(255,255,255,.08)}
+.surface-content{max-width:420px;background:rgba(10,14,26,.7);backdrop-filter:blur(16px);padding:2rem;border-radius:16px;border:1px solid rgba(255,255,255,.08)}
 .surface-description{color:rgba(255,255,255,.8);margin:0;font-size:.95rem;line-height:1.8}
 .planet-facts{position:absolute;left:6rem;bottom:8rem;width:min(470px,42vw)}
 .facts-label{display:block;margin-bottom:1.25rem;color:rgba(255,255,255,.48);font-size:.72rem;font-weight:600;letter-spacing:3px}
@@ -487,24 +700,89 @@ onUnmounted(() => { window.removeEventListener('resize', onWindowResize); cancel
 .system-card h4{font-family:'Cinzel',serif;font-size:1rem;letter-spacing:2px;margin:0 0 .5rem}
 .system-card p{font-size:.78rem;line-height:1.65;color:rgba(255,255,255,.65);margin:0}
 
+.menu-toggle{display:none;background:transparent;border:0;cursor:pointer;padding:.4rem;z-index:12}
+.menu-toggle span{display:block;width:24px;height:2px;background:#fff;margin:5px 0;border-radius:2px;transition:transform .3s,opacity .3s}
+.menu-toggle.open span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+.menu-toggle.open span:nth-child(2){opacity:0}
+.menu-toggle.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+
+@media(max-width:1024px){
+  .header{padding:1.2rem 2rem}
+  .nav-links{gap:1rem}
+  .nav-tab{font-size:.82rem;padding:.35rem .7rem}
+  .section{padding:0 3rem}
+  .left-planet{left:2.5rem}
+  .right-planet{right:2.5rem}
+  .title{font-size:4.5rem}
+  .detail-title{font-size:3.2rem}
+  .planet-facts{left:3rem;width:min(400px,38vw)}
+  .stars-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
 @media(max-width:768px){
-  .header{padding:1.2rem 1.5rem}
-  .nav-links{gap:.5rem}
-  .nav-tab{font-size:.75rem;padding:.3rem .55rem}
+  .header{padding:1rem 1.2rem}
+  .logo-star{width:36px;height:36px}
+  .logo-text{font-size:1.2rem;letter-spacing:2px}
+  .menu-toggle{display:block}
   .btn-enroll{display:none}
-  .section{padding:0 2rem}
-  .title{font-size:3.5rem}
-  .detail-title{font-size:2.8rem}
-  .adjacent-planet,.scroll-indicator{display:none}
-  .planet-facts{left:2rem;bottom:3rem;width:calc(100% - 4rem)}
-  .planet-facts dl{gap:.85rem 1rem}
-  .planet-facts dd{font-size:.72rem}
+  .nav-links{position:fixed;top:0;right:0;height:100vh;width:min(280px,75vw);flex-direction:column;align-items:flex-start;justify-content:center;gap:1.2rem;padding:2rem;background:rgba(10,14,26,.96);backdrop-filter:blur(20px);border-left:1px solid rgba(255,255,255,.08);transform:translateX(100%);transition:transform .35s ease;z-index:11;box-sizing:border-box}
+  .nav-links.open{transform:translateX(0)}
+  .nav-tab{font-size:1rem;padding:.6rem 1rem;width:100%;text-align:left;border-radius:10px}
+  .nav-tab.active{background:rgba(99,179,237,.12)}
+  .section{padding:0 1.5rem}
+  .hero-content{margin-top:-6vh}
+  .title{font-size:3rem;letter-spacing:5px;margin-bottom:1rem}
+  .description{font-size:.85rem;line-height:1.7;margin-bottom:1.8rem}
+  .detail-title{font-size:2.4rem;letter-spacing:4px}
+  .detail-description{font-size:.85rem;line-height:1.7}
+  .scroll-indicator{display:none}
+  .adjacent-planet{display:flex;top:auto;bottom:1rem;font-size:.62rem;letter-spacing:2px;gap:.45rem}
+  .left-planet{left:.8rem}
+  .right-planet{right:.8rem}
+  .planet-thumb{width:34px;height:34px;flex:0 0 34px}
+  .hero-section{justify-content:center}
+  .detail-section{justify-content:center;text-align:center}
+  .detail-content{max-width:100%;display:flex;flex-direction:column;align-items:center}
+  .actions{justify-content:center}
+  .surface-section{justify-content:center;align-items:center;padding-bottom:4rem}
+  .planet-facts{position:static;width:100%;max-width:420px;margin:0 auto}
+  .planet-facts dl{grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem 1rem}
+  .planet-facts dd{font-size:.7rem}
   .surface-content{display:none}
-  .stars-panel,.system-panel{padding:6rem 1.2rem 3rem}
-  .stars-title,.system-title{font-size:2.2rem}
-  .stars-grid{grid-template-columns:1fr}
-  .system-grid{grid-template-columns:1fr}
-  .stars-group-title{font-size:1.1rem;text-align:center}
-  .nav-tab.hide-mobile{display:none}
+  .stars-panel,.system-panel{padding:5.5rem 1.2rem 3rem}
+  .stars-title,.system-title{font-size:2rem;letter-spacing:4px}
+  .stars-subtitle,.system-subtitle{font-size:.85rem}
+  .stars-grid{grid-template-columns:1fr;gap:1rem}
+  .system-grid{grid-template-columns:1fr;gap:1rem}
+  .stars-group-title{font-size:1.05rem;text-align:center}
+  .star-card{padding:1.5rem 1.2rem 1.2rem}
+  .star-figure{width:64px;height:64px}
+  .system-card{padding:1.4rem 1.2rem}
+  .system-value{font-size:1.1rem}
+}
+
+@media(max-width:480px){
+  .header{padding:.8rem 1rem}
+  .logo-star{width:30px;height:30px}
+  .logo-text{font-size:1.05rem;letter-spacing:1.5px}
+  .section{padding:0 1rem}
+  .adjacent-planet{bottom:.8rem;font-size:.55rem}
+  .left-planet{left:.5rem}
+  .right-planet{right:.5rem}
+  .planet-thumb{width:28px;height:28px;flex:0 0 28px}
+  .title{font-size:2.4rem;letter-spacing:4px}
+  .description{font-size:.8rem}
+  .detail-title{font-size:2rem}
+  .detail-description{font-size:.8rem}
+  .btn-primary{padding:.75rem 1.6rem;font-size:.78rem}
+  .planet-facts dl{grid-template-columns:1fr;gap:.6rem}
+  .planet-facts dd{font-size:.68rem}
+  .stars-panel,.system-panel{padding:5rem .9rem 2.5rem}
+  .stars-title,.system-title{font-size:1.7rem}
+  .star-card{padding:1.3rem 1rem 1rem}
+  .star-name{font-size:.95rem}
+  .star-description{font-size:.78rem}
+  .system-card{padding:1.2rem 1rem}
+  .system-card p{font-size:.72rem}
 }
 </style>
